@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from mplsoccer import Pitch
+from src.data_loader import load_match_data
 
 # Page config
 st.set_page_config(page_title="Player Movement Analysis", layout="wide")
@@ -10,25 +11,49 @@ st.set_page_config(page_title="Player Movement Analysis", layout="wide")
 # Title
 st.title("⚽ Player Movement Intelligence Dashboard")
 
-# Load data
-@st.cache_data
-def load_data():
-    df = pd.read_csv('data/synced_enriched_tracking_and_events_10min.csv')
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
-    return df
+# Match selection
+AVAILABLE_MATCHES = {
+    1886347: "Match 1886347",
+    1899585: "Match 1899585",
+    1925299: "Match 1925299",
+    1953632: "Match 1953632",
+    1996435: "Match 1996435",
+    2006229: "Match 2006229",
+    2011166: "Match 2011166",
+    2013725: "Match 2013725",
+    2015213: "Match 2015213",
+    2017461: "Match 2017461"
+}
 
-df = load_data()
+selected_match_id = st.sidebar.selectbox(
+    "Select Match:",
+    list(AVAILABLE_MATCHES.keys()),
+    format_func=lambda x: AVAILABLE_MATCHES[x]
+)
+
+# Load data (first 10 minutes only)
+@st.cache_data
+def load_data(match_id):
+    return load_match_data(match_id, minutes=10)
+
+with st.spinner('Loading match data (first 10 minutes)...'):
+    df = load_data(selected_match_id)
+    
+    # Display match info
+    if 'match_name' in df.columns:
+        match_name = df['match_name'].iloc[0]
+        st.info(f"📋 {match_name} - First 10 minutes")
 
 # Calculate velocity
 @st.cache_data
-def calculate_velocity(df):
-    df = df.sort_values(['player_id_tracking', 'timestamp'])
-    df['x_diff'] = df.groupby('player_id_tracking')['x'].diff()
-    df['y_diff'] = df.groupby('player_id_tracking')['y'].diff()
-    df['time_diff'] = df.groupby('player_id_tracking')['timestamp'].diff().dt.total_seconds()
-    df['distance'] = np.sqrt(df['x_diff']**2 + df['y_diff']**2)
-    df['velocity'] = df['distance'] / df['time_diff']
-    return df
+def calculate_velocity(_df):
+    _df = _df.sort_values(['player_id_tracking', 'timestamp'])
+    _df['x_diff'] = _df.groupby('player_id_tracking')['x'].diff()
+    _df['y_diff'] = _df.groupby('player_id_tracking')['y'].diff()
+    _df['time_diff'] = _df.groupby('player_id_tracking')['timestamp'].diff().dt.total_seconds()
+    _df['distance'] = np.sqrt(_df['x_diff']**2 + _df['y_diff']**2)
+    _df['velocity'] = _df['distance'] / _df['time_diff']
+    return _df
 
 df = calculate_velocity(df)
 
@@ -61,12 +86,13 @@ col1, col2, col3, col4 = st.columns(4)
 
 total_distance = player_data['distance'].sum()
 sprint_distance = player_data[player_data['velocity'] > 7]['distance'].sum()
-top_speed = player_data['velocity'].max()
+top_speed_ms = player_data['velocity'].max()
+top_speed_kmh = top_speed_ms * 3.6  # Convert m/s to km/h
 num_sprints = ((player_data['velocity'] > 7) & (player_data['velocity'].shift(1) <= 7)).sum()
 
 col1.metric("Total Distance", f"{total_distance:.0f} m")
 col2.metric("Sprint Distance", f"{sprint_distance:.0f} m")
-col3.metric("Top Speed", f"{top_speed:.1f} m/s")
+col3.metric("Top Speed", f"{top_speed_kmh:.1f} km/h")
 col4.metric("Number of Sprints", f"{num_sprints}")
 
 # Visualizations
