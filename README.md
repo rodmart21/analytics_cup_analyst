@@ -66,13 +66,14 @@ This tool enables several key use cases:
 ---
 
 ## Video URL
-[YOUR YOUTUBE/LOOM URL HERE]
+https://youtu.be/JRMGW6uupw8
 
 ---
 
 ## Run Instructions
 ```bash
 uv sync   # Install dependencies
+source .venv/bin/activate  # Activate the venv
 streamlit run app.py  # Run the Streamlit app
 ```
 The Streamlit app takes its sweet time—2-3 minutes per match. Good thing patience is a skill, right?
